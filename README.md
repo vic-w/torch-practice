@@ -5,7 +5,7 @@ Torch7深度学习实例
 1. linear-reg
    实现最简单的线性回归，结果等效于最小二乘法拟合直线。
 
-2. mlp 
+2. multilayer-perceptron 
    多层感知器神经网络
 
 3. neural-lena
