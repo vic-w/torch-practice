@@ -21,16 +21,16 @@ price_train = price:reshape(10,1)
 
 gnuplot.figure()
 
-x, dl_dx = model:getParameters()
+w, dl_dw = model:getParameters()
 
-feval = function(x_new)
-   if x ~= x_new then x:copy(x_new) end
-    dl_dx:zero()
+feval = function(w_new)
+   if w ~= w_new then w:copy(w_new) end
+    dl_dw:zero()
 
     price_predict = model:forward(month_train)
     loss = criterion:forward(price_predict, price_train)
     model:backward(month_train, criterion:backward(price_predict, price_train))
-    return loss, dl_dx
+    return loss, dl_dw
 end
     
 params = {
@@ -38,7 +38,7 @@ params = {
 }
 
 for i=1,3000 do
-   _, fs = optim.rprop(feval, x, params)
+   optim.rprop(feval, w, params)
 
    if i%10==0 then
       gnuplot.plot({month, price}, {month_train:reshape(10), price_predict:reshape(10)})
