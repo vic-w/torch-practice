@@ -3,13 +3,11 @@ require 'torch'
 require 'nn'
 require 'qtwidget'
 require 'optim'
---require 'cutorch'
---print(  cutorch.getDeviceProperties(cutorch.getDevice()) )
---require 'cunn'
+require 'cutorch'
+require 'cunn'
 
 l=image.lena()
---l=image.load('test.jpg')
---l=l[{{1},{},{}}]
+
 window=qtwidget.newwindow(512,512)
 image.display({image=l,win=window})
  
@@ -24,29 +22,18 @@ model:add(nn.ReLU())
 layer3 = nn.Linear(300,300)
 model:add(layer3)
 model:add(nn.Sigmoid())
---layer4 = nn.Linear(300,300)
---model:add(layer4)
---model:add(nn.ReLU())
-layer5 = nn.Linear(300,3)
-model:add(layer5)
-
+layer4 = nn.Linear(300,3)
+model:add(layer4)
 model = require('weight-init')(model, 'xavier')
-
---model:cuda()
-
---model:add(nn.Sigmoid())
---model:add(nn.Linear(20,3))
 criterion = nn.MSECriterion()
---criterion:cuda()
-x, dl_dx = model:getParameters()
 
-sgd_params = {
-   learningRate = 1e-2,
-   learningRateDecay = 1e-4,
-   weightDecay = 1e-3,
-   momentum = 1e-4
-}
+function load_model()
+   model = torch.load('model.t7')
+end
+pcall(load_model)
 
+model:cuda()
+criterion:cuda()
 
 
 inputs={}
@@ -67,10 +54,20 @@ for i = 1,512*512 do
    shuffled_targets[{{i},{}}] = targets[{{shuffle[i]},{}}]
 end
 
---inputs = inputs:cuda()
---targets = targets:cuda()
+inputs = inputs:cuda()
+targets = targets:cuda()
 
+
+params = {
+   learningRate = 1e-2,
+   learningRateDecay = 1e-4,
+   weightDecay = 1e-3,
+   momentum = 1e-4
+}
+
+x, dl_dx = model:getParameters()
 t = 0
+
 
 local feval = function(x_new)
     -- reset data
@@ -79,8 +76,8 @@ local feval = function(x_new)
    if x ~= x_new then x:copy(x_new) end
     dl_dx:zero()
 
-    batch_inputs = shuffled_inputs[{{t+1, t+batch_size},{}}]
-    batch_targets = shuffled_targets[{{t+1, t+batch_size},{}}]
+    batch_inputs = shuffled_inputs[{{t+1, t+batch_size},{}}]:cuda()
+    batch_targets = shuffled_targets[{{t+1, t+batch_size},{}}]:cuda()
     -- perform mini-batch gradient descent
     local output = model:forward(batch_inputs)
     local loss = criterion:forward(output, batch_targets)
@@ -94,18 +91,18 @@ end
 
 for n=1,10000000 do
 
- _, fs = optim.adagrad(feval, x, sgd_params)
+ _, fs = optim.adagrad(feval, x, params)
 
  collectgarbage()
- --print('layer1 w', layer1.weight)
- --print('layer1 b', layer1.bias)
- --print('layer2 w', layer2.weight)
- --print('layer2 b', layer2.bias)
+
  print(n, 'err', fs[1])
  if n%128 == 0 then
     output = model:forward(inputs):t():reshape(3,512,512)
-    image.display({image=output,win=window})
+    image.display({image=output:double(),win=window})
     image.save('output.png', output)
+ end
+ if n%1280 == 0 then
+    torch.save('model.t7', model)
  end
 end
 
