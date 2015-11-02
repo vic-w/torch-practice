@@ -1,8 +1,8 @@
 require 'torch'
 require 'nn'
 require 'optim'
-require 'cunn'
-require 'cutorch'
+--require 'cunn'
+--require 'cutorch'
 mnist = require 'mnist'
 
 fullset = mnist.traindataset()
@@ -20,9 +20,13 @@ validationset = {
     label = fullset.label[{{50001,60000}}]
 }
 
+trainset.data = trainset.data - trainset.data:mean()
+validationset.data = validationset.data - validationset.data:mean()
+
+
 model = nn.Sequential()
 model:add(nn.Reshape(1, 28, 28))
-model:add(nn.MulConstant(1/256.0))
+model:add(nn.MulConstant(1/256.0*3.2))
 model:add(nn.SpatialConvolution(1, 20, 5, 5, 1, 1, 0, 0))
 model:add(nn.SpatialMaxPooling(2, 2 , 2, 2, 0, 0))
 model:add(nn.SpatialConvolution(20, 50, 5, 5, 1, 1, 0, 0))
@@ -33,14 +37,16 @@ model:add(nn.ReLU())
 model:add(nn.Linear(500, 10))
 model:add(nn.LogSoftMax())
 
+model = require('weight-init')(model, 'xavier')
+
 criterion = nn.ClassNLLCriterion()
 
-model = model:cuda()
-criterion = criterion:cuda()
-trainset.data = trainset.data:cuda()
-trainset.label = trainset.label:cuda()
-validationset.data = validationset.data:cuda()
-validationset.label = validationset.label:cuda()
+--model = model:cuda()
+--criterion = criterion:cuda()
+--trainset.data = trainset.data:cuda()
+--trainset.label = trainset.label:cuda()
+--validationset.data = validationset.data:cuda()
+--validationset.label = validationset.label:cuda()
 
 sgd_params = {
    learningRate = 1e-2,
@@ -59,8 +65,8 @@ step = function(batch_size)
     for t = 1,trainset.size,batch_size do
         -- setup inputs and targets for this mini-batch
         local size = math.min(t + batch_size - 1, trainset.size) - t
-        local inputs = torch.Tensor(size, 28, 28):cuda()
-        local targets = torch.Tensor(size):cuda()
+        local inputs = torch.Tensor(size, 28, 28)--:cuda()
+        local targets = torch.Tensor(size)--:cuda()
         for i = 1,size do
             local input = trainset.data[shuffle[i+t]]
             local target = trainset.label[shuffle[i+t]]
@@ -99,8 +105,8 @@ eval = function(dataset, batch_size)
     
     for i = 1,dataset.size,batch_size do
         local size = math.min(i + batch_size - 1, dataset.size) - i
-        local inputs = dataset.data[{{i,i+size-1}}]:cuda()
-        local targets = dataset.label[{{i,i+size-1}}]:long():cuda()
+        local inputs = dataset.data[{{i,i+size-1}}]--:cuda()
+        local targets = dataset.label[{{i,i+size-1}}]:long()--:cuda()
         local outputs = model:forward(inputs)
         local _, indices = torch.max(outputs, 2)
         indices:add(-1)
