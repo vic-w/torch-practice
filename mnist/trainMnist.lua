@@ -1,13 +1,15 @@
 require 'torch'
 require 'nn'
 require 'optim'
---require 'cunn'
---require 'cutorch'
+require 'cunn'
+require 'cutorch'
 mnist = require 'mnist'
 
+print('Read data set')
 fullset = mnist.traindataset()
 testset = mnist.testdataset()
 
+print('Split validation set')
 trainset = {
     size = 50000,
     data = fullset.data[{{1,50000}}]:double(),
@@ -20,6 +22,7 @@ validationset = {
     label = fullset.label[{{50001,60000}}]
 }
 
+print('Normalize')
 trainset.data = trainset.data - trainset.data:mean()
 validationset.data = validationset.data - validationset.data:mean()
 
@@ -41,12 +44,12 @@ model = require('weight-init')(model, 'xavier')
 
 criterion = nn.ClassNLLCriterion()
 
---model = model:cuda()
---criterion = criterion:cuda()
---trainset.data = trainset.data:cuda()
---trainset.label = trainset.label:cuda()
---validationset.data = validationset.data:cuda()
---validationset.label = validationset.label:cuda()
+model = model:cuda()
+criterion = criterion:cuda()
+trainset.data = trainset.data:cuda()
+trainset.label = trainset.label:cuda()
+validationset.data = validationset.data:cuda()
+validationset.label = validationset.label:cuda()
 
 sgd_params = {
    learningRate = 1e-2,
@@ -65,8 +68,8 @@ step = function(batch_size)
     for t = 1,trainset.size,batch_size do
         -- setup inputs and targets for this mini-batch
         local size = math.min(t + batch_size - 1, trainset.size) - t
-        local inputs = torch.Tensor(size, 28, 28)--:cuda()
-        local targets = torch.Tensor(size)--:cuda()
+        local inputs = torch.Tensor(size, 28, 28):cuda()
+        local targets = torch.Tensor(size):cuda()
         for i = 1,size do
             local input = trainset.data[shuffle[i+t]]
             local target = trainset.label[shuffle[i+t]]
@@ -105,8 +108,8 @@ eval = function(dataset, batch_size)
     
     for i = 1,dataset.size,batch_size do
         local size = math.min(i + batch_size - 1, dataset.size) - i
-        local inputs = dataset.data[{{i,i+size-1}}]--:cuda()
-        local targets = dataset.label[{{i,i+size-1}}]:long()--:cuda()
+        local inputs = dataset.data[{{i,i+size-1}}]:cuda()
+        local targets = dataset.label[{{i,i+size-1}}]:long():cuda()
         local outputs = model:forward(inputs)
         local _, indices = torch.max(outputs, 2)
         indices:add(-1)
@@ -119,6 +122,7 @@ end
 
 max_iters = 30
 
+print('Start training')
 do
     local last_accuracy = 0
     local decreasing = 0
