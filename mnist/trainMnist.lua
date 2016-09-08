@@ -109,10 +109,11 @@ eval = function(dataset, batch_size)
     for i = 1,dataset.size,batch_size do
         local size = math.min(i + batch_size - 1, dataset.size) - i
         local inputs = dataset.data[{{i,i+size-1}}]:cuda()
-        local targets = dataset.label[{{i,i+size-1}}]:long():cuda()
+        local targets = dataset.label[{{i,i+size-1}}]:cuda()
         local outputs = model:forward(inputs)
         local _, indices = torch.max(outputs, 2)
         indices:add(-1)
+        indices = indices:cuda()
         local guessed_right = indices:eq(targets):sum()
         count = count + guessed_right
     end
